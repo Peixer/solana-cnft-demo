@@ -40,8 +40,8 @@ async function main() {
   airdropSolIfNeeded(wallet.publicKey)
 
   const maxDepthSizePair: ValidDepthSizePair = {
-    maxDepth: 3,
-    maxBufferSize: 8,
+    maxDepth: 14,
+    maxBufferSize: 64,
   }
 
   const canopyDepth = 0
@@ -60,20 +60,26 @@ async function main() {
     wallet,
     treeAddress,
     collectionNft,
-    2 ** maxDepthSizePair.maxDepth
+    10
   )
 
-  // Log NFT details to illustrate Read API
-  await logNftDetails(treeAddress, 2 ** maxDepthSizePair.maxDepth)
-
-  const receiver = Keypair.generate()
+  // const treeAddress = new PublicKey('6mxs5co3xd3pw2XGJEigQqQyeFhmTFnT7dNKAHRmaw1d');
+  const receiver = new PublicKey('GTz2hsZX5oVGjT62qQtP7Ad4g5nefDAjHZeyPZbqLXi9');
 
   // Transfer first cNFT to random receiver to illustrate transfers
+  const assetId =  await getLeafAssetId(treeAddress, new BN(0));
   await transferNft(
     connection,
-    await getLeafAssetId(treeAddress, new BN(0)),
+    assetId,
     wallet,
-    receiver.publicKey
+    receiver
+  )
+  const assetIdSecond =  await getLeafAssetId(treeAddress, new BN(1));
+  await transferNft(
+    connection,
+    assetIdSecond,
+    wallet,
+    receiver
   )
 }
 
@@ -214,6 +220,12 @@ async function mintCompressedNftToCollection(
 async function logNftDetails(treeAddress: PublicKey, nftsMinted: number) {
   for (let i = 0; i < nftsMinted; i++) {
     const assetId = await getLeafAssetId(treeAddress, new BN(i))
+
+    if (!assetId) {
+      console.log(`No asset found at index ${i}`)
+      continue
+    }
+
     console.log("Asset ID:", assetId.toBase58())
     const response = await fetch(process.env.RPC_URL, {
       method: "POST",
@@ -239,6 +251,7 @@ async function transferNft(
   receiver: PublicKey
 ) {
   try {
+    console.log("Transferring NFT:", assetId)
     const assetDataResponse = await fetch(process.env.RPC_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -251,6 +264,7 @@ async function transferNft(
         },
       }),
     })
+
     const assetData = (await assetDataResponse.json()).result
 
     const assetProofResponse = await fetch(process.env.RPC_URL, {
